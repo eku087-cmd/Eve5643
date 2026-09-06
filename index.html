@@ -998,3 +998,256 @@ body.loaded .hero__media img{ transform:scale(1); }
     </div>
   </div>
 </footer>
+
+<!-- ========================= MODAL ========================= -->
+<div class="modal" id="modal" data-open="false" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal__scrim" data-close-modal></div>
+  <div class="modal__panel">
+    <button class="modal__close" data-close-modal aria-label="Закрыть">Закрыть</button>
+    <h3 class="h3" id="modalTitle">Расскажите о задаче</h3>
+    <p class="lead">Ответим в течение рабочего дня и предложим сценарий сделки.</p>
+
+    <form id="leadForm" novalidate>
+      <div class="field">
+        <label for="f-name">Имя</label>
+        <input id="f-name" name="name" type="text" autocomplete="name" required>
+      </div>
+      <div class="field">
+        <label for="f-phone">Телефон</label>
+        <input id="f-phone" name="phone" type="tel" autocomplete="tel" required>
+      </div>
+      <div class="field">
+        <label id="goalLabel">Что хотите сделать?</label>
+        <div class="choices" role="radiogroup" aria-labelledby="goalLabel">
+          <label><input type="radio" name="goal" value="Продать" checked><span>Продать</span></label>
+          <label><input type="radio" name="goal" value="Купить"><span>Купить</span></label>
+          <label><input type="radio" name="goal" value="Продать и купить"><span>Продать и купить</span></label>
+          <label><input type="radio" name="goal" value="Другое"><span>Другое</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-msg">Комментарий</label>
+        <textarea id="f-msg" name="message" rows="3"></textarea>
+      </div>
+      <button class="btn" type="submit">Получить консультацию</button>
+      <p class="privacy">Нажимая кнопку, вы соглашаетесь с политикой конфиденциальности.</p>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var mqHover = window.matchMedia('(min-width: 901px)');
+
+  /* ---------- page load choreography ---------- */
+  window.addEventListener('load', function(){ document.body.classList.add('loaded'); });
+  setTimeout(function(){ document.body.classList.add('loaded'); }, 900); // fallback
+
+  /* ---------- generic reveal (supporting content) ---------- */
+  var revealItems = document.querySelectorAll('.fade, .lines, .clip, .rule, .problem, .cta');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { rootMargin:'0px 0px -10% 0px', threshold:0.1 });
+    revealItems.forEach(function(el){
+      if (el.closest('.hero')) { return; }   // hero handled by load sequence
+      io.observe(el);
+    });
+  } else {
+    revealItems.forEach(function(el){ el.classList.add('in'); });
+  }
+
+  /* ---------- counters ---------- */
+  var trust = document.getElementById('trust');
+  function runCounters(){
+    document.querySelectorAll('.count').forEach(function(el){
+      var to = parseFloat(el.dataset.to), dec = parseInt(el.dataset.dec || 0, 10);
+      if (reduce){ el.textContent = to.toFixed(dec).replace('.', ','); return; }
+      var start = null, dur = 1700;
+      function tick(t){
+        if (!start) start = t;
+        var p = Math.min((t - start) / dur, 1);
+        var eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = (to * eased).toFixed(dec).replace('.', ',');
+        if (p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+  if (trust && 'IntersectionObserver' in window){
+    var cio = new IntersectionObserver(function(e){
+      if (e[0].isIntersecting){ runCounters(); cio.disconnect(); }
+    }, { threshold:0.35 });
+    cio.observe(trust);
+  } else { runCounters(); }
+
+  /* ---------- scroll engine: header, hero, parallax, process line ---------- */
+  var nav = document.getElementById('nav');
+  var heroImg = document.getElementById('heroImg');
+  var heroCopy = document.getElementById('heroCopy');
+  var approachImg = document.getElementById('approachImg');
+  var steps = document.getElementById('steps');
+  var stepEls = steps ? steps.querySelectorAll('.step') : [];
+  var lightZones = document.querySelectorAll('.light');
+  var lastY = window.pageYOffset, ticking = false;
+
+  function frame(){
+    var y = window.pageYOffset, vh = window.innerHeight;
+
+    /* header: glass + directional hide */
+    nav.classList.toggle('is-glass', y > 40);
+    var delta = y - lastY;
+    if (Math.abs(delta) > 6){
+      if (delta > 0 && y > 100) nav.classList.add('is-hidden');
+      else nav.classList.remove('is-hidden');
+      lastY = y;
+    }
+    var probe = 90, onLight = false;
+    lightZones.forEach(function(z){
+      var r = z.getBoundingClientRect();
+      if (r.top <= probe && r.bottom >= probe) onLight = true;
+    });
+    nav.classList.toggle('on-light', onLight);
+
+    if (!reduce){
+      /* hero scroll transition */
+      if (y < vh * 1.15){
+        var p = Math.min(y / vh, 1);
+        if (heroImg) heroImg.style.transform = 'scale(' + (1 - p * 0.05) + ') translateY(' + (-p * 5) + '%)';
+        if (heroCopy) heroCopy.style.transform = 'translateY(' + (-p * 10) + '%)';
+      }
+      /* approach image parallax — desktop only */
+      if (approachImg && mqHover.matches){
+        var r = approachImg.getBoundingClientRect();
+        if (r.bottom > 0 && r.top < vh){
+          var c = (r.top + r.height / 2 - vh / 2) / vh;
+          approachImg.style.transform = 'translateY(' + (c * 5) + '%) scale(1.06)';
+        }
+      }
+      /* process line + active steps */
+      if (steps){
+        var sr = steps.getBoundingClientRect();
+        var prog = (vh * 0.82 - sr.top) / (sr.height + vh * 0.32);
+        prog = Math.max(0, Math.min(prog, 1));
+        steps.style.setProperty('--p', prog.toFixed(3));
+        stepEls.forEach(function(s, i){
+          s.classList.toggle('on', prog >= (i + 0.5) / stepEls.length);
+        });
+      }
+    }
+    ticking = false;
+  }
+  window.addEventListener('scroll', function(){
+    if (!ticking){ ticking = true; requestAnimationFrame(frame); }
+  }, { passive:true });
+  window.addEventListener('resize', frame, { passive:true });
+  frame();
+
+  /* ---------- mobile menu ---------- */
+  var burger = document.getElementById('burger');
+  var menu = document.getElementById('menu');
+  function setMenu(open){
+    document.body.classList.toggle('menu-open', open);
+    burger.setAttribute('aria-expanded', String(open));
+  }
+  burger.addEventListener('click', function(){ setMenu(!document.body.classList.contains('menu-open')); });
+  menu.addEventListener('click', function(e){ if (e.target.tagName === 'A') setMenu(false); });
+
+  /* ---------- FAQ accordion ---------- */
+  document.querySelectorAll('.faq__q').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var item = btn.closest('.faq__item');
+      var open = item.classList.toggle('open');
+      btn.setAttribute('aria-expanded', String(open));
+    });
+  });
+
+  /* ---------- modal ---------- */
+  var modal = document.getElementById('modal');
+  var lastFocus = null;
+  function openModal(e){
+    if (e && e.preventDefault) e.preventDefault(); // на случай, если триггер — ссылка <a>
+    lastFocus = document.activeElement;
+
+    var trigger = e && e.currentTarget;
+    var goal = trigger && trigger.dataset ? trigger.dataset.goal : null;
+    if (goal){
+      var radio = leadForm.querySelector('input[name="goal"][value="' + goal + '"]');
+      if (radio) radio.checked = true;
+    }
+
+    modal.setAttribute('data-open','true');
+    document.documentElement.style.overflow = 'hidden';
+    setMenu(false);
+    var first = modal.querySelector('input, textarea, button');
+    if (first) first.focus({ preventScroll:true });
+  }
+  function closeModal(){
+    modal.setAttribute('data-open','false');
+    document.documentElement.style.overflow = '';
+    if (lastFocus) lastFocus.focus({ preventScroll:true });
+    if (leadSent) setTimeout(resetLeadForm, 500); // вернуть форму, когда панель уехала
+  }
+  document.querySelectorAll('[data-open-modal]').forEach(function(b){ b.addEventListener('click', openModal); });
+  document.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', closeModal); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape'){ closeModal(); setMenu(false); }
+  });
+
+  /* ---------- lead form → Google Sheets ---------- */
+  var GOOGLE_SCRIPT_URL =
+    'https://script.google.com/macros/s/AKfycbyrSBvi15WX1kq0hRq3WEv_xsSZnXFgAWD3LnX2XBBYIOn8raGd73FG6Q_3PQfrtZ8O7g/exec';
+
+  var leadForm = document.getElementById('leadForm');
+  var leadFormHTML = leadForm.innerHTML;
+  var leadSent = false;
+
+  function resetLeadForm(){
+    leadForm.innerHTML = leadFormHTML;
+    leadSent = false;
+  }
+  function esc(str){
+    return String(str).replace(/[&<>"']/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c];
+    });
+  }
+
+  leadForm.addEventListener('submit', async function(e){
+    e.preventDefault();
+    var form = this;
+    var name = form.querySelector('#f-name');
+    var phone = form.querySelector('#f-phone');
+    var submitButton = form.querySelector('button[type="submit"]');
+
+    if (!name.value.trim()){ name.focus(); return; }
+    if (!phone.value.trim()){ phone.focus(); return; }
+
+    var originalButtonText = submitButton.textContent;
+    submitButton.disabled = true;
+    submitButton.textContent = 'Отправляем...';
+
+    var data = new URLSearchParams(new FormData(form));
+
+    try {
+      await fetch(GOOGLE_SCRIPT_URL, { method:'POST', mode:'no-cors', body:data });
+      leadSent = true;
+      form.innerHTML =
+        '<div style="margin-top:48px">' +
+          '<p class="label">Заявка отправлена</p>' +
+          '<h3 class="h3" style="margin-top:16px">Спасибо, ' + esc(name.value.trim()) + '.</h3>' +
+          '<p class="lead" style="margin-top:16px">Мы получили вашу заявку и свяжемся с вами в течение рабочего дня.</p>' +
+        '</div>';
+    } catch (error) {
+      console.error('Ошибка отправки формы:', error);
+      submitButton.disabled = false;
+      submitButton.textContent = originalButtonText;
+      alert('Не удалось отправить заявку. Попробуйте ещё раз.');
+    }
+  });
+})();
+</script>
+</body>
+</html>
